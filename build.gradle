@@ -21,7 +21,7 @@ allprojects {
 ext {
 	projectDescription	= "Complexible: OpenRdf Utility classes"
 	projectUrl			= "https://github.com/mhgrove/cp-openrdf-utils"
-	sesameVersion = "4.0.0"
+	rdf4jVersion = "2.0"
 }
 
 subprojects {
@@ -29,8 +29,8 @@ subprojects {
 	apply plugin: "maven"
 
 	dependencies {
-		compile 'org.slf4j:slf4j-api:1.7.7'
-		compile 'org.slf4j:slf4j-jdk14:1.7.7'
+		compile 'org.slf4j:slf4j-api:1.7.25'
+		compile 'ch.qos.logback:logback-classic:1.2.3'
 
 		testCompile 'junit:junit:4.11'
 	}

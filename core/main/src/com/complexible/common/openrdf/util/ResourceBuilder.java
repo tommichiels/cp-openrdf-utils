@@ -1,257 +1,189 @@
-/*
- * Copyright (c) 2009-2015 Clark & Parsia, LLC. <http://www.clarkparsia.com>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.complexible.common.openrdf.util;
 
 import com.complexible.common.openrdf.model.Models2;
-import org.openrdf.model.Model;
-import org.openrdf.model.ValueFactory;
-import org.openrdf.model.impl.SimpleValueFactory;
-import org.openrdf.model.vocabulary.RDFS;
-import org.openrdf.model.vocabulary.RDF;
-import org.openrdf.model.vocabulary.XMLSchema;
-import org.openrdf.model.Value;
-import org.openrdf.model.IRI;
-import org.openrdf.model.Resource;
-import org.openrdf.model.BNode;
-
-import java.util.List;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.GregorianCalendar;
-
 import com.google.common.collect.Sets;
-
-import javax.xml.datatype.DatatypeFactory;
+import java.net.URI;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.Iterator;
+import java.util.List;
 import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeFactory;
+import org.eclipse.rdf4j.model.BNode;
+import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Model;
+import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.model.vocabulary.RDF;
+import org.eclipse.rdf4j.model.vocabulary.RDFS;
+import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
 
-/**
- * <p>Utility class for creating statements about a particular resource.</p>
- *
- * @author	Michael Grove
- * @since	0.1
- * @version	4.0
- */
-public class ResourceBuilder {
-    private final Model mGraph;
-    private final Resource mRes;
-    private final ValueFactory mValueFactory;
+public class ResourceBuilder implements Value {
+	private final Model mGraph;
+	private final Resource mRes;
+	private final ValueFactory mValueFactory;
 
-    public ResourceBuilder(final Resource theRes) {
-        this(Models2.newModel(), SimpleValueFactory.getInstance(), theRes);
-    }
+	public ResourceBuilder(Resource theRes) {
+		this(Models2.newModel(), SimpleValueFactory.getInstance(), theRes);
+	}
 
-    protected ResourceBuilder(final Model theGraph, final ValueFactory theValueFactory, final Resource theRes) {
-        mRes = theRes;
-        mGraph = theGraph;
-        mValueFactory = theValueFactory;
-    }
+	protected ResourceBuilder(Model theGraph, ValueFactory theValueFactory, Resource theRes) {
+		this.mRes = theRes;
+		this.mGraph = theGraph;
+		this.mValueFactory = theValueFactory;
+	}
 
-	public ResourceBuilder addProperty(IRI theProperty, java.net.URI theURI) {
-		return addProperty(theProperty, mValueFactory.createIRI(theURI.toString()));
+	public ResourceBuilder addProperty(IRI theProperty, URI theURI) {
+		return this.addProperty(theProperty, (Value) this.mValueFactory.createIRI(theURI.toString()));
 	}
 
 	public ResourceBuilder addProperty(IRI theProperty, List<? extends Value> theList) {
-		Resource aListRes = mValueFactory.createBNode();
+		BNode aListRes = this.mValueFactory.createBNode();
+		this.mGraph.add(this.getResource(), theProperty, aListRes, new Resource[0]);
+		Iterator aResIter = theList.iterator();
 
-		mGraph.add(getResource(), theProperty, aListRes);
-
-		Iterator<? extends Value> aResIter = theList.iterator();
 		while (aResIter.hasNext()) {
-			mGraph.add(aListRes, RDF.FIRST, aResIter.next());
+			this.mGraph.add(aListRes, RDF.FIRST, (Value) aResIter.next(), new Resource[0]);
 			if (aResIter.hasNext()) {
-				BNode aNextListElem = mValueFactory.createBNode();
-				mGraph.add(aListRes, RDF.REST, aNextListElem);
+				BNode aNextListElem = this.mValueFactory.createBNode();
+				this.mGraph.add(aListRes, RDF.REST, aNextListElem, new Resource[0]);
 				aListRes = aNextListElem;
-			}
-			else {
-				mGraph.add(aListRes, RDF.REST, RDF.NIL);
+			} else {
+				this.mGraph.add(aListRes, RDF.REST, RDF.NIL, new Resource[0]);
 			}
 		}
 
 		return this;
 	}
 
-    public ResourceBuilder addProperty(IRI theProperty, Value theValue) {
-        if (theValue != null) {
-            mGraph.add(mRes, theProperty, theValue);
-        }
-
-        return this;
-    }
-
-    public Resource getResource() {
-        return mRes;
-    }
-
-    public Model model() {
-        return mGraph;
-    }
-
-    public ResourceBuilder addProperty(IRI theProperty, ResourceBuilder theBuilder) {
-        if (theBuilder != null) {
-            addProperty(theProperty, theBuilder.getResource());
-
-            mGraph.addAll(Sets.newHashSet(theBuilder.mGraph));
-        }
-
-        return this;
-    }
-
-    public ResourceBuilder addProperty(IRI theProperty, String theValue) {
+	public ResourceBuilder addProperty(IRI theProperty, Value theValue) {
 		if (theValue != null) {
-			return addProperty(theProperty, mValueFactory.createLiteral(theValue));
+			this.mGraph.add(this.mRes, theProperty, theValue, new Resource[0]);
 		}
-		else {
-			return this;
-		}
-    }
 
-    public ResourceBuilder addProperty(IRI theProperty, Integer theValue) {
-		if (theValue != null) {
-        	return addProperty(theProperty, mValueFactory.createLiteral(theValue));
-		}
-		else {
-			return this;
-		}
-    }
+		return this;
+	}
 
-    public ResourceBuilder addProperty(IRI theProperty, Long theValue) {
-		if (theValue != null) {
-	        return addProperty(theProperty, mValueFactory.createLiteral(theValue));
-		}
-		else {
-			return this;
-		}
-    }
+	public Resource getResource() {
+		return this.mRes;
+	}
 
-    public ResourceBuilder addProperty(IRI theProperty, Short theValue) {
-		if (theValue != null) {
-	        return addProperty(theProperty, mValueFactory.createLiteral(theValue));
-		}
-		else {
-			return this;
-		}
-    }
+	public Model model() {
+		return this.mGraph;
+	}
 
-    public ResourceBuilder addProperty(IRI theProperty, Double theValue) {
-		if (theValue != null) {
-        	return addProperty(theProperty, mValueFactory.createLiteral(theValue));
+	public ResourceBuilder addProperty(IRI theProperty, ResourceBuilder theBuilder) {
+		if (theBuilder != null) {
+			this.addProperty(theProperty, (Value) theBuilder.getResource());
+			this.mGraph.addAll(Sets.newHashSet(theBuilder.mGraph));
 		}
-		else {
-			return this;
-		}
-    }
 
-	/**
-	 * Add a xsd:dateTime property to the resource
-	 *
-	 * @param theProperty   the property
-	 * @param theValue      the date-time object
-	 * @return              this builder
-	 */
+		return this;
+	}
+
+	public ResourceBuilder addProperty(IRI theProperty, String theValue) {
+		return theValue != null
+				? this.addProperty(theProperty, (Value) this.mValueFactory.createLiteral(theValue))
+				: this;
+	}
+
+	public ResourceBuilder addProperty(IRI theProperty, Integer theValue) {
+		return theValue != null
+				? this.addProperty(theProperty, (Value) this.mValueFactory.createLiteral(theValue.intValue()))
+				: this;
+	}
+
+	public ResourceBuilder addProperty(IRI theProperty, Long theValue) {
+		return theValue != null
+				? this.addProperty(theProperty, (Value) this.mValueFactory.createLiteral(theValue.longValue()))
+				: this;
+	}
+
+	public ResourceBuilder addProperty(IRI theProperty, Short theValue) {
+		return theValue != null
+				? this.addProperty(theProperty, (Value) this.mValueFactory.createLiteral(theValue.shortValue()))
+				: this;
+	}
+
+	public ResourceBuilder addProperty(IRI theProperty, Double theValue) {
+		return theValue != null
+				? this.addProperty(theProperty, (Value) this.mValueFactory.createLiteral(theValue.doubleValue()))
+				: this;
+	}
+
 	public ResourceBuilder addProperty(IRI theProperty, Date theValue) {
 		if (theValue != null) {
 			GregorianCalendar c = new GregorianCalendar();
 			c.setTime(theValue);
 
 			try {
-				return addProperty(theProperty, mValueFactory.createLiteral(DatatypeFactory.newInstance().newXMLGregorianCalendar(c).toXMLFormat(), XMLSchema.DATETIME));
+				return this.addProperty(theProperty,
+						(Value) this.mValueFactory.createLiteral(
+								DatatypeFactory.newInstance().newXMLGregorianCalendar(c).toXMLFormat(),
+								XMLSchema.DATETIME));
+			} catch (DatatypeConfigurationException arg4) {
+				throw new IllegalArgumentException(arg4);
 			}
-			catch (DatatypeConfigurationException e) {
-				throw new IllegalArgumentException(e);
-			}
-		}
-		else {
+		} else {
 			return this;
 		}
 	}
 
-    public ResourceBuilder addProperty(IRI theProperty, Float theValue) {
-		if (theValue != null) {
-	        return addProperty(theProperty, mValueFactory.createLiteral(theValue));
-		}
-		else {
-			return this;
-		}
-    }
+	public ResourceBuilder addProperty(IRI theProperty, Float theValue) {
+		return theValue != null
+				? this.addProperty(theProperty, (Value) this.mValueFactory.createLiteral(theValue.floatValue()))
+				: this;
+	}
 
-    public ResourceBuilder addProperty(IRI theProperty, Boolean theValue) {
-		if (theValue != null) {
-        	return addProperty(theProperty, mValueFactory.createLiteral(theValue));
-		}
-		else {
-			return this;
-		}
-    }
+	public ResourceBuilder addProperty(IRI theProperty, Boolean theValue) {
+		return theValue != null
+				? this.addProperty(theProperty, (Value) this.mValueFactory.createLiteral(theValue.booleanValue()))
+				: this;
+	}
 
-	@SuppressWarnings("unchecked")
 	public ResourceBuilder addProperty(IRI theProperty, Object theObject) {
 		if (theObject == null) {
 			return this;
-		}
-		else if (theObject instanceof Boolean) {
-			return addProperty(theProperty, (Boolean) theObject);
-		}
-		else if (theObject instanceof Long) {
-			return addProperty(theProperty, (Long) theObject);
-		}
-		else if (theObject instanceof Integer) {
-			return addProperty(theProperty, (Integer) theObject);
-		}
-		else if (theObject instanceof Short) {
-			return addProperty(theProperty, (Short) theObject);
-		}
-		else if (theObject instanceof Float) {
-			return addProperty(theProperty, (Float) theObject);
-		}
-		else if (theObject instanceof Date) {
-			return addProperty(theProperty, (Date) theObject);
-		}
-		else if (theObject instanceof Double) {
-			return addProperty(theProperty, (Double) theObject);
-		}
-		else if (theObject instanceof Value) {
-			return addProperty(theProperty, (Value) theObject);
-		}
-		else if (theObject instanceof List) {
-			try {
-				return addProperty(theProperty, (List<Value>) theObject);
-			}
-			catch (ClassCastException e) {
-				e.printStackTrace();
-				return this;
-			}
-		}
-		else if (theObject instanceof ResourceBuilder) {
-			return addProperty(theProperty, (ResourceBuilder) theObject);
-		}
-		else if (theObject instanceof java.net.URI) {
-			return addProperty(theProperty, (java.net.URI) theObject);
-		}
-		else {
-			return addProperty(theProperty, theObject.toString());
+		} else if (theObject instanceof ResourceBuilder) {
+			return this.addProperty(theProperty, (ResourceBuilder) theObject);
+		} else if (theObject instanceof Boolean) {
+			return this.addProperty(theProperty, (Boolean) theObject);
+		} else if (theObject instanceof Long) {
+			return this.addProperty(theProperty, (Long) theObject);
+		} else if (theObject instanceof Integer) {
+			return this.addProperty(theProperty, (Integer) theObject);
+		} else if (theObject instanceof Short) {
+			return this.addProperty(theProperty, (Short) theObject);
+		} else if (theObject instanceof Float) {
+			return this.addProperty(theProperty, (Float) theObject);
+		} else if (theObject instanceof Date) {
+			return this.addProperty(theProperty, (Date) theObject);
+		} else if (theObject instanceof Double) {
+			return this.addProperty(theProperty, (Double) theObject);
+		} else if (theObject instanceof Value) {
+			return this.addProperty(theProperty, (Value) theObject);
+		} else if (theObject instanceof List) {
+			return this.addProperty(theProperty, (List) theObject);
+		} else if (theObject instanceof URI) {
+			return this.addProperty(theProperty, (URI) theObject);
+		} else if (theObject instanceof String) {
+			return this.addProperty(theProperty, theObject.toString());
+		} else {
+			throw new IllegalArgumentException(theObject + " is not a supported type");
 		}
 	}
 
-    public ResourceBuilder addLabel(String theLabel) {
-        return addProperty(RDFS.LABEL, theLabel);
-    }
+	public ResourceBuilder addLabel(String theLabel) {
+		return this.addProperty(RDFS.LABEL, theLabel);
+	}
 
-    public ResourceBuilder addType(IRI theType) {
-        return addProperty(RDF.TYPE, theType);
-    }
+	public ResourceBuilder addType(IRI theType) {
+		return this.addProperty(RDF.TYPE, (Value) theType);
+	}
+
+	public String stringValue() {
+		return this.mRes.stringValue();
+	}
 }
-

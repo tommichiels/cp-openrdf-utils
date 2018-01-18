@@ -18,12 +18,12 @@ package com.complexible.common.openrdf.model;
 import java.util.Collection;
 
 import java.util.function.Predicate;
-import org.openrdf.model.IRI;
-import org.openrdf.model.Literal;
-import org.openrdf.model.Model;
-import org.openrdf.model.Resource;
-import org.openrdf.model.Statement;
-import org.openrdf.model.Value;
+import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Literal;
+import org.eclipse.rdf4j.model.Model;
+import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.Value;
 
 /**
  * <p>A {@link Model} which has a {@link Predicate constraint} placed upon which statements can be added to the Model.</p>

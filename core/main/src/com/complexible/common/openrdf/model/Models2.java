@@ -1,7 +1,18 @@
 package com.complexible.common.openrdf.model;
 
+import com.complexible.common.openrdf.model.ModelIO;
+import com.complexible.common.openrdf.model.Statements;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import org.eclipse.rdf4j.common.iteration.Iteration;
+import org.eclipse.rdf4j.common.iteration.Iterations;
 import java.io.IOException;
+import java.lang.invoke.LambdaMetafactory;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -9,43 +20,33 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BinaryOperator;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.eclipse.rdf4j.model.BNode;
+import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Literal;
+import org.eclipse.rdf4j.model.Model;
+import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.impl.LinkedHashModel;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.model.vocabulary.RDF;
+import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import info.aduna.iteration.Iteration;
-import info.aduna.iteration.Iterations;
-import org.openrdf.model.IRI;
-import org.openrdf.model.Literal;
-import org.openrdf.model.Model;
-import org.openrdf.model.Resource;
-import org.openrdf.model.Statement;
-import org.openrdf.model.Value;
-import org.openrdf.model.impl.LinkedHashModel;
-import org.openrdf.model.impl.SimpleValueFactory;
-import org.openrdf.model.vocabulary.RDF;
-import org.openrdf.model.vocabulary.XMLSchema;
-
-/**
- * <p>Additional {@link Model} utilities</p>
- *
- * @author  Michael Grove
- * @since   4.0
- * @version 4.0
- */
 public final class Models2 {
-
 	private Models2() {
 		throw new AssertionError();
 	}
 
 	public static Collector<Statement, Model, Model> toModel() {
 		return new Collector<Statement, Model, Model>() {
+
 			@Override
 			public Supplier<Model> supplier() {
 				return Models2::newModel;
@@ -53,13 +54,13 @@ public final class Models2 {
 
 			@Override
 			public BiConsumer<Model, Statement> accumulator() {
-				return Model::add;
+				return Set::add;
 			}
 
 			@Override
 			public BinaryOperator<Model> combiner() {
 				return (theGraph, theOtherGraph) -> {
-					theGraph.addAll(theOtherGraph);
+					theGraph.addAll((Collection) theOtherGraph);
 					return theGraph;
 				};
 			}
@@ -70,258 +71,153 @@ public final class Models2 {
 			}
 
 			@Override
-			public Set<Characteristics> characteristics() {
-				return Sets.newHashSet(Characteristics.IDENTITY_FINISH, Characteristics.UNORDERED);
+			public Set<Collector.Characteristics> characteristics() {
+				return (Set<java.util.stream.Collector.Characteristics>) Sets.newHashSet((java.util.stream.Collector.Characteristics[]) new Collector.Characteristics[]{
+						Collector.Characteristics.IDENTITY_FINISH, Collector.Characteristics.UNORDERED});
 			}
 		};
 	}
 
-	public static Model of(final Path thePath) throws IOException {
-		return ModelIO.read(thePath);
+	public static Model of(Path thePath) throws IOException {
+		return ModelIO.read((Path) thePath);
 	}
 
 	public static Model newModel() {
 		return new LinkedHashModel();
 	}
 
-	public static Model newModel(final Iterable<Statement> theStmts) {
-		Model aModel = newModel();
-
-		Iterables.addAll(aModel, theStmts);
-
+	public static Model newModel(Iterable<Statement> theStmts) {
+		Model aModel = Models2.newModel();
+		Iterables.addAll((Collection) aModel, theStmts);
 		return aModel;
 	}
 
-	public static Model newModel(final Iterator<Statement> theStmts) {
-		Model aModel = newModel();
-
-		Iterators.addAll(aModel, theStmts);
-
+	public static Model newModel(Iterator<Statement> theStmts) {
+		Model aModel = Models2.newModel();
+		Iterators.addAll((Collection) aModel, theStmts);
 		return aModel;
 	}
 
-	public static Model newModel(final Statement... theStmts) {
-		Model aModel = newModel();
-
+	public static Model newModel(Statement... theStmts) {
+		Model aModel = Models2.newModel();
 		Collections.addAll(aModel, theStmts);
-
 		return aModel;
 	}
 
-	public static <E extends Exception, T extends Iteration<Statement, E>> Model newModel(final T theStmts) throws E {
-		Model aModel = newModel();
-
-		Iterations.stream(theStmts)
-		          .forEach(aModel::add);
-
+	public static <E extends Exception, T extends Iteration<Statement, E>> Model newModel(T theStmts) throws Exception {
+		Model aModel = Models2.newModel();
+		Iterations.stream(theStmts).forEach(aModel::add);
 		return aModel;
 	}
 
-	/**
-	 * Returns a copy of the provided graph where all the statements belong to the specified context.
-	 * This will overwrite any existing contexts on the statements in the graph.
-	 *
-	 * @param theGraph		the graph
-	 * @param theResource	the context for all the statements in the graph
-	 * @return 				the new graph
-	 */
-	public static Model withContext(final Iterable<Statement> theGraph, final Resource theResource) {
-		final Model aModel = newModel();
-
+	public static Model withContext(Iterable<Statement> theGraph, Resource theResource) {
+		Model aModel = Models2.newModel();
 		for (Statement aStmt : theGraph) {
-			aModel.add(SimpleValueFactory.getInstance().createStatement(aStmt.getSubject(),
-		                                                                aStmt.getPredicate(),
-		                                                                aStmt.getObject(),
-		                                                                theResource));
+			aModel.add((Statement) SimpleValueFactory.getInstance().createStatement(aStmt.getSubject(),
+					aStmt.getPredicate(), aStmt.getObject(), theResource));
 		}
-
 		return aModel;
 	}
 
-	/**
-	 * Return a new Graph which is the union of all the provided graphs.
-	 *
-	 * @param theGraphs the graphs to union
-	 * @return			the union of the graphs
-	 */
-	public static Model union(final Model... theGraphs) {
-		Model aModel = newModel();
-
+	public static Model union(Model... theGraphs) {
+		Model aModel = Models2.newModel();
 		for (Model aGraph : theGraphs) {
-			aModel.addAll(aGraph);
+			aModel.addAll((Collection) aGraph);
 		}
-
 		return aModel;
 	}
 
-
-	/**
-	 * Return the value of the property for the given subject.  If there are multiple values, only the first value will
-	 * be returned.
-	 *
-	 * @param theGraph	the graph
-	 * @param theSubj	the subject
-	 * @param thePred	the property of the subject whose value should be retrieved
-	 *
-	 * @return 			optionally, the value of the the property for the subject
-	 */
-	public static Optional<Value> getObject(final Model theGraph, final Resource theSubj, final IRI thePred) {
-		Iterator<Value> aCollection = theGraph.filter(theSubj, thePred, null).objects().iterator();
-
+	public static Optional<Value> getObject(Model theGraph, Resource theSubj, IRI thePred) {
+		Iterator aCollection = theGraph.filter(theSubj, thePred, null, new Resource[0]).objects().iterator();
 		if (aCollection.hasNext()) {
-			return Optional.of(aCollection.next());
+			return Optional.of((Value)aCollection.next());
 		}
-		else {
-			return Optional.empty();
-		}
+		return Optional.empty();
 	}
 
-	/**
-	 * Return the value of of the property as a Literal
-	 *
-	 * @param theGraph	the graph
-	 * @param theSubj	the resource
-	 * @param thePred	the property whose value is to be retrieved
-	 * @return 			Optionally, the property value as a literal.  Value will be absent of the SP does not have an O, or the O is not a literal
-	 */
-	public static Optional<Literal> getLiteral(final Model theGraph, final Resource theSubj, final IRI thePred) {
-		Optional<Value> aVal = getObject(theGraph, theSubj, thePred) ;
-
+	public static Optional<Literal> getLiteral(Model theGraph, Resource theSubj, IRI thePred) {
+		Optional<Value> aVal = Models2.getObject(theGraph, theSubj, thePred);
 		if (aVal.isPresent() && aVal.get() instanceof Literal) {
 			return Optional.of((Literal) aVal.get());
 		}
-		else {
-			return Optional.empty();
-		}
+		return Optional.empty();
 	}
 
-	/**
-	 * Return the value of of the property as a Resource
-	 *
-	 * @param theGraph	the graph
-	 * @param theSubj	the resource
-	 * @param thePred	the property whose value is to be retrieved
-	 * @return 			Optionally, the property value as a Resource.  Value will be absent of the SP does not have an O, or the O is not a Resource*
-	 */
-	public static Optional<Resource> getResource(final Model theGraph, final Resource theSubj, final IRI thePred) {
-		Optional<Value> aVal = getObject(theGraph, theSubj, thePred) ;
-
+	public static Optional<Resource> getResource(Model theGraph, Resource theSubj, IRI thePred) {
+		Optional<Value> aVal = Models2.getObject(theGraph, theSubj, thePred);
 		if (aVal.isPresent() && aVal.get() instanceof Resource) {
 			return Optional.of((Resource) aVal.get());
 		}
-		else {
-			return Optional.empty();
-		}
+		return Optional.empty();
 	}
 
-	/**
-	 * Returns the value of the property on the given resource as a boolean.
-	 *
-	 * @param theGraph	the graph
-	 * @param theSubj	the resource
-	 * @param thePred	the property
-	 * @return 			Optionally, the value of the property as a boolean.  Value will be absent if the SP does not have an O,
-	 * 					or that O is not a literal or not a valid boolean value
-	 */
-	public static Optional<Boolean> getBooleanValue(final Model theGraph, final Resource theSubj, final IRI thePred) {
-		Optional<Literal> aLitOpt = getLiteral(theGraph, theSubj, thePred);
-
+	public static Optional<Boolean> getBooleanValue(Model theGraph, Resource theSubj, IRI thePred) {
+		Optional<Literal> aLitOpt = Models2.getLiteral(theGraph, theSubj, thePred);
 		if (!aLitOpt.isPresent()) {
 			return Optional.empty();
 		}
-
 		Literal aLiteral = aLitOpt.get();
-
-		if (((aLiteral.getDatatype() != null && aLiteral.getDatatype().equals(XMLSchema.BOOLEAN))
-		     || (aLiteral.getLabel().equalsIgnoreCase("true") || aLiteral.getLabel().equalsIgnoreCase("false")))) {
+		if (aLiteral.getDatatype() != null && aLiteral.getDatatype().equals((Object) XMLSchema.BOOLEAN)
+				|| aLiteral.getLabel().equalsIgnoreCase("true") || aLiteral.getLabel().equalsIgnoreCase("false")) {
 			return Optional.of(Boolean.valueOf(aLiteral.getLabel()));
 		}
-		else {
-			return Optional.empty();
-		}
+		return Optional.empty();
 	}
 
-	/**
-	 * Returns whether or not the given resource is a rdf:List
-	 *
-	 * @param theGraph	the graph
-	 * @param theRes	the resource to check
-	 *
-	 * @return			true if its a list, false otherwise
-	 */
-	public static boolean isList(final Model theGraph, final Resource theRes) {
-		return theRes != null && (theRes.equals(RDF.NIL) || theGraph.stream().filter(Statements.matches(theRes, RDF.FIRST, null)).findFirst().isPresent());
+	public static boolean isList(Model theGraph, Resource theRes) {
+		return theRes != null && (theRes.equals((Object) RDF.NIL) || theGraph.stream().filter(
+				Statements.matches((Resource) theRes, (IRI) RDF.FIRST, (Value) null, (Resource[]) new Resource[0]))
+				.findFirst().isPresent());
 	}
 
-	/**
-	 * Return the contents of the given list by following the rdf:first/rdf:rest structure of the list
-	 * @param theGraph	the graph
-	 * @param theRes	the resource which is the head of the list
-	 *
-	 * @return 			the contents of the list.
-	 */
-	public static List<Value> asList(final Model theGraph, final Resource theRes) {
-		List<Value> aList = Lists.newArrayList();
-
+	public static List<Value> asList(Model theGraph, Resource theRes) {
+		ArrayList aList = Lists.newArrayList();
 		Resource aListRes = theRes;
-
 		while (aListRes != null) {
-
-			Optional<Resource> aFirst = getResource(theGraph, aListRes, RDF.FIRST);
-			Optional<Resource> aRest = getResource(theGraph, aListRes, RDF.REST);
-
+			Optional<Value> aFirst = Models2.getObject(theGraph, aListRes, RDF.FIRST);
+			Optional<Resource> aRest = Models2.getResource(theGraph, aListRes, RDF.REST);
 			if (aFirst.isPresent()) {
 				aList.add(aFirst.get());
 			}
-
-			if (aRest.orElse(RDF.NIL).equals(RDF.NIL)) {
+			if (((Resource) aRest.orElse((Resource) RDF.NIL)).equals((Object) RDF.NIL)) {
 				aListRes = null;
+				continue;
 			}
-			else {
-				aListRes = aRest.get();
-			}
+			aListRes = aRest.get();
 		}
-
 		return aList;
 	}
 
-	/**
-	 * Return the contents of the list serialized as an RDF list
-	 * @param theResources	the list
-	 * @return				the list as RDF
-	 */
-	public static Model toList(final List<Resource> theResources) {
-		Resource aCurr = SimpleValueFactory.getInstance().createBNode();
+	public static Model toList(List<Value> theResources) {
+		Model aResult = Models2.newModel();
+		Models2.toList(theResources, aResult);
+		return aResult;
+	}
 
+	public static Resource toList(List<Value> theResources, Model theGraph) {
+		BNode aCurr = SimpleValueFactory.getInstance().createBNode();
 		int i = 0;
-		Model aGraph = newModel();
-
-		for (Resource aRes : theResources) {
-			Resource aNext = SimpleValueFactory.getInstance().createBNode();
-			aGraph.add(aCurr, RDF.FIRST, aRes);
-			aGraph.add(aCurr, RDF.REST, ++i < theResources.size() ? aNext : RDF.NIL);
+		BNode aHead = aCurr;
+		for (Value aRes : theResources) {
+			BNode aNext = SimpleValueFactory.getInstance().createBNode();
+			theGraph.add((Resource) aCurr, RDF.FIRST, aRes, new Resource[0]);
+			theGraph.add((Resource) aCurr, RDF.REST, (Value) (++i < theResources.size() ? aNext : RDF.NIL),
+					new Resource[0]);
 			aCurr = aNext;
 		}
-
-		return aGraph;
-	}
-	/**
-	 * Return an {@link Iterable} of the types of the {@link Resource} in the specified {@link Model}
-	 *
-	 * @param theGraph	the graph
-	 * @param theRes	the resource
-	 * @return			the asserted rdf:type's of the resource
-	 */
-	public static Iterable<Resource> getTypes(final Model theGraph, final Resource theRes) {
-		return theGraph.stream()
-		               .filter(Statements.matches(theRes, RDF.TYPE, null))
-		               .map(Statement::getObject)
-		               .map(theObject -> (Resource) theObject)
-		               .collect(Collectors.toList());
+		return aHead;
 	}
 
-	public static boolean isInstanceOf(final Model theGraph, final Resource theSubject, final Resource theType) {
-		return theGraph.contains(SimpleValueFactory.getInstance().createStatement(theSubject, RDF.TYPE, theType));
+	public static Iterable<Resource> getTypes(Model theGraph, Resource theRes) {
+		return (Iterable) theGraph.stream().filter(Statements.matches(theRes, RDF.TYPE, (Value) null, new Resource[0]))
+				.map(Statement::getObject).map((theObject) -> {
+					return (Resource) theObject;
+				}).collect(Collectors.toList());
+	}
+
+	public static boolean isInstanceOf(Model theGraph, Resource theSubject, Resource theType) {
+		return theGraph.contains(
+				(Object) SimpleValueFactory.getInstance().createStatement(theSubject, RDF.TYPE, (Value) theType));
 	}
 
 }
